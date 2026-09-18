@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <title>SmartCart Invoice</title>
+
+    <style>
+
+        @page {
+            size: A4;
+            margin: 30px;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            color: #222;
+            margin: 0;
+            padding: 0;
+        }
+
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #222;
+            padding-bottom: 12px;
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 26px;
+        }
+
+        .header p {
+            margin: 5px 0;
+            font-size: 13px;
+        }
+
+        .details {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+        }
+
+        .details td {
+            width: 50%;
+            vertical-align: top;
+            padding: 5px;
+        }
+
+        .box {
+            border: 1px solid #cccccc;
+            padding: 12px;
+        }
+
+        .box-title {
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid #dddddd;
+        }
+
+        .address-box {
+            border: 1px solid #cccccc;
+            padding: 12px;
+            margin-top: 10px;
+            margin-bottom: 20px;
+        }
+
+        .items {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        .items th {
+            border: 1px solid #333333;
+            padding: 8px;
+            background-color: #eeeeee;
+            text-align: center;
+        }
+
+        .items td {
+            border: 1px solid #333333;
+            padding: 8px;
+        }
+
+        .center {
+            text-align: center;
+        }
+
+        .right {
+            text-align: right;
+        }
+
+        .summary {
+            width: 45%;
+            margin-left: auto;
+            margin-top: 15px;
+            border-collapse: collapse;
+        }
+
+        .summary td {
+            padding: 7px;
+            border-bottom: 1px solid #dddddd;
+        }
+
+        .grand-total td {
+            font-size: 15px;
+            font-weight: bold;
+            border-top: 2px solid #222222;
+        }
+
+        .payment-box {
+            border: 1px solid #cccccc;
+            padding: 12px;
+            margin-top: 20px;
+        }
+
+        .footer {
+            text-align: center;
+            border-top: 1px solid #cccccc;
+            margin-top: 30px;
+            padding-top: 10px;
+            color: #666666;
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+
+<!-- =====================================================
+     SMARTCART HEADER
+====================================================== -->
+
+<div class="header">
+
+    <h1>SmartCart</h1>
+
+    <p>Purchase Invoice</p>
+
+</div>
+
+
+
+<!-- =====================================================
+     INVOICE + CUSTOMER DETAILS
+====================================================== -->
+
+<table class="details">
+
+    <tr>
+
+        <!-- INVOICE DETAILS -->
+
+        <td>
+
+            <div class="box">
+
+                <div class="box-title">
+                    Invoice Details
+                </div>
+
+                <b>Order ID:</b>
+                {{ order.order_id }}
+
+                <br><br>
+
+                <b>Invoice Date:</b>
+                {{ order.created_at }}
+
+                <br><br>
+
+                <b>User ID:</b>
+                {{ order.user_id }}
+
+            </div>
+
+        </td>
+
+
+        <!-- CUSTOMER DETAILS -->
+
+        <td>
+
+            <div class="box">
+
+                <div class="box-title">
+                    Customer Details
+                </div>
+
+                <b>Name:</b>
+                {{ order.customer_name }}
+
+                <br><br>
+
+                <b>Email:</b>
+                {{ session.get('user_email') }}
+
+                <br><br>
+
+                <b>Mobile:</b>
+                {{ order.customer_phone }}
+
+            </div>
+
+        </td>
+
+    </tr>
+
+</table>
+
+
+
+<!-- =====================================================
+     DELIVERY ADDRESS
+====================================================== -->
+
+<div class="address-box">
+
+    <div class="box-title">
+        Delivery Address
+    </div>
+
+    <b>Address:</b>
+
+    {{ order.shipping_address }}
+
+    <br><br>
+
+    <b>City:</b>
+    {{ order.shipping_city }}
+
+    <br><br>
+
+    <b>State:</b>
+    {{ order.shipping_state }}
+
+    <br><br>
+
+    <b>Pincode:</b>
+    {{ order.shipping_pincode }}
+
+</div>
+
+
+
+<!-- =====================================================
+     ORDER ITEMS
+====================================================== -->
+
+<table class="items">
+
+    <tr>
+
+        <th width="8%">
+            S.No
+        </th>
+
+        <th width="37%">
+            Product
+        </th>
+
+        <th width="15%">
+            Quantity
+        </th>
+
+        <th width="20%">
+            Unit Price
+        </th>
+
+        <th width="20%">
+            Total
+        </th>
+
+    </tr>
+
+
+    {% for item in order_items %}
+
+    <tr>
+
+        <td class="center">
+            {{ loop.index }}
+        </td>
+
+        <td>
+            {{ item.product_name }}
+        </td>
+
+        <td class="center">
+            {{ item.quantity }}
+        </td>
+
+        <td class="right">
+            Rs. {{ "%.2f"|format(item.price) }}
+        </td>
+
+        <td class="right">
+            Rs. {{ "%.2f"|format(item.price * item.quantity) }}
+        </td>
+
+    </tr>
+
+    {% endfor %}
+
+</table>
+
+
+
+<!-- =====================================================
+     PRICE SUMMARY
+====================================================== -->
+
+<table class="summary">
+
+    <tr>
+
+        <td>
+            Subtotal
+        </td>
+
+        <td class="right">
+            Rs. {{ "%.2f"|format(order.amount) }}
+        </td>
+
+    </tr>
+
+
+    <tr>
+
+        <td>
+            Delivery Charge
+        </td>
+
+        <td class="right">
+            Rs. 0.00
+        </td>
+
+    </tr>
+
+
+    <tr class="grand-total">
+
+        <td>
+            Grand Total
+        </td>
+
+        <td class="right">
+            Rs. {{ "%.2f"|format(order.amount) }}
+        </td>
+
+    </tr>
+
+</table>
+
+
+
+<!-- =====================================================
+     PAYMENT DETAILS
+====================================================== -->
+
+<div class="payment-box">
+
+    <div class="box-title">
+        Payment Details
+    </div>
+
+    <b>Payment Status:</b>
+    {{ order.payment_status }}
+
+    <br><br>
+
+    <b>Razorpay Order ID:</b>
+    {{ order.razorpay_order_id }}
+
+    <br><br>
+
+    <b>Razorpay Payment ID:</b>
+    {{ order.razorpay_payment_id }}
+
+    <br><br>
+
+    <b>Amount Paid:</b>
+    Rs. {{ "%.2f"|format(order.amount) }}
+
+</div>
+
+
+
+<!-- =====================================================
+     FOOTER
+====================================================== -->
+
+<div class="footer">
+
+    <p>
+        Thank you for shopping with SmartCart!
+    </p>
+
+    <p>
+        This is a computer-generated invoice.
+    </p>
+
+</div>
+
+
+</body>
+
+</html>
