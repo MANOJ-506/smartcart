@@ -1,26 +1,53 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Product Details</title>
-</head>
-<body>
+{% extends "user/user_base.html" %}
 
-<h2>{{ product.name }}</h2>
+{% block title %}{{ product.name }} - SmartCart{% endblock %}
 
-<img src="/static/uploads/product_images/{{ product.image }}" width="300"><br><br>
+{% block user_content %}
+<div>
+    <div style="margin-bottom: 1.5rem;">
+        <a href="{{ url_for('user_products') }}" style="font-size: 0.9rem;">
+            &larr; Back to Products
+        </a>
+    </div>
 
-<p><strong>Description:</strong> {{ product.description }}</p>
-<p><strong>Category:</strong> {{ product.category }}</p>
-<p><strong>Price:</strong> ₹{{ product.price }}</p>
+    <div class="product-detail-layout">
+        <!-- Product Image -->
+        <div class="product-detail-img-box">
+            {% if product.image %}
+            <img src="/static/uploads/product_images/{{ product.image }}" alt="{{ product.name }}">
+            {% else %}
+            <span style="color: var(--text-light);">No Image Available</span>
+            {% endif %}
+        </div>
 
-<br>
-<a href="/user/products">Back to Products</a>
-<br><br>
-<a href="/user/cart">view cart</a>
+        <!-- Product Information -->
+        <div class="product-detail-content">
+            <span class="badge" style="width: fit-content; margin-bottom: 0.5rem;">
+                {{ product.category }}
+            </span>
+            <h1 style="font-size: 1.5rem; margin-bottom: 0.25rem;">
+                {{ product.name }}
+            </h1>
+            <div class="product-detail-price">
+                ₹{{ "%.2f"|format(product.price|float) if product.price else "0.00" }}
+            </div>
 
-<form action="/user/add-to-cart/{{ product.product_id }}" method="GET">
-    <button type="submit">Add to Cart</button>
-</form>
+            <div class="product-detail-desc">
+                {{ product.description }}
+            </div>
 
-</body>
-</html>
+            <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: auto;">
+                <form action="/user/add-to-cart/{{ product.product_id }}" method="GET" style="display: inline-block;">
+                    <button type="submit" class="btn btn-secondary btn-lg">
+                        Add to Cart
+                    </button>
+                </form>
+
+                <a href="/user/buy-now/{{ product.product_id }}" class="btn btn-primary btn-lg">
+                    Buy Now
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

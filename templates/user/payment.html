@@ -1,220 +1,97 @@
-<!DOCTYPE html>
-<html>
+{% extends "user/user_base.html" %}
 
-<head>
+{% block title %}Checkout - Payment - SmartCart{% endblock %}
 
-    <title>Payment</title>
-
-    <style>
-
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f5f5f5;
-        }
-
-        .container {
-            width: 500px;
-            margin: 50px auto;
-            background: white;
-            padding: 25px;
-            border-radius: 10px;
-            box-shadow: 0px 2px 10px rgba(0,0,0,0.1);
-        }
-
-        h2 {
-            text-align: center;
-        }
-
-        .product {
-            padding: 15px;
-            background-color: #f8f8f8;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
-
-        .address {
-            padding: 15px;
-            background-color: #f8f8f8;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
-
-        .pay-btn {
-            width: 100%;
-            padding: 12px;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            font-size: 16px;
-            cursor: pointer;
-        }
-
-        .pay-btn:hover {
-            background-color: #0056b3;
-        }
-
-    </style>
-
-</head>
-
-<body>
-
-<div class="container">
-
-    <h2>Payment</h2>
-
-
-    <!-- Product -->
-
-    <div class="product">
-
-        <h3>{{ product.name }}</h3>
-
-        <p>
-            Price:
-            <strong>₹{{ product.price }}</strong>
-        </p>
-
+{% block user_content %}
+<div class="container-narrow">
+    <!-- Clean Stepper -->
+    <div class="checkout-stepper">
+        <span class="step-badge">1. Address</span>
+        <span class="step-arrow">&rarr;</span>
+        <span class="step-badge active">2. Payment</span>
+        <span class="step-arrow">&rarr;</span>
+        <span class="step-badge">3. Confirmation</span>
     </div>
 
+    <div class="card">
+        <div class="card-header">
+            <h2>Payment Summary</h2>
+        </div>
 
-    <!-- Delivery Address -->
+        <div style="margin-bottom: 1.5rem; padding-bottom: 1.25rem; border-bottom: 1px solid var(--border);">
+            <h4>Product</h4>
+            <p style="margin-bottom: 0.25rem; font-weight: 600; color: var(--text-main);">{{ product.name }}</p>
+            <p style="margin-bottom: 0; color: var(--primary); font-size: 1.15rem; font-weight: 700;">
+                ₹{{ "%.2f"|format(amount|float) }}
+            </p>
+        </div>
 
-    <div class="address">
+        <div style="margin-bottom: 2rem;">
+            <h4>Delivering to:</h4>
+            <p style="margin-bottom: 0.25rem; font-weight: 500; color: var(--text-main);">
+                {{ session['buy_now_address']['full_name'] }} ({{ session['buy_now_address']['mobile'] }})
+            </p>
+            <p style="margin-bottom: 0;">
+                {{ session['buy_now_address']['house'] }}, {{ session['buy_now_address']['street'] }},
+                {{ session['buy_now_address']['city'] }}, {{ session['buy_now_address']['state'] }} - {{ session['buy_now_address']['pincode'] }}
+            </p>
+        </div>
 
-        <h3>Delivery Address</h3>
+        <button id="pay-button" class="btn btn-primary btn-block btn-lg">
+            Pay ₹{{ "%.2f"|format(amount|float) }} with Razorpay
+        </button>
 
-        <p>
-            <strong>Name:</strong>
-            {{ session['buy_now_address']['full_name'] }}
-        </p>
-
-        <p>
-            <strong>Mobile:</strong>
-            {{ session['buy_now_address']['mobile'] }}
-        </p>
-
-        <p>
-            <strong>Address:</strong>
-            {{ session['buy_now_address']['house'] }},
-            {{ session['buy_now_address']['street'] }}
-        </p>
-
-        <p>
-            {{ session['buy_now_address']['city'] }},
-            {{ session['buy_now_address']['state'] }}
-            - {{ session['buy_now_address']['pincode'] }}
-        </p>
-
+        <div style="margin-top: 1rem; text-align: center;">
+            <a href="/user/buy-now/{{ product.product_id }}" style="font-size: 0.85rem; color: var(--text-muted);">
+                &larr; Edit Delivery Address
+            </a>
+        </div>
     </div>
-
-
-    <!-- Razorpay Payment Button -->
-
-    <button id="pay-button" class="pay-btn">
-
-        Pay ₹{{ amount }}
-
-    </button>
-
 </div>
 
-
-<!-- Razorpay Checkout -->
-
+<!-- Razorpay Integration Scripts -->
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-
-
 <script>
-
     var options = {
-
         "key": "{{ key_id }}",
-
         "amount": "{{ amount * 100 }}",
-
         "currency": "INR",
-
         "name": "SmartCart",
-
         "description": "Order Payment",
-
         "order_id": "{{ order_id }}",
-
         "handler": function (response) {
-
-            // Create form
             var form = document.createElement("form");
-
             form.method = "POST";
-
             form.action = "/verify-payment";
 
-
-            // Payment ID
             var paymentId = document.createElement("input");
-
             paymentId.type = "hidden";
-
             paymentId.name = "razorpay_payment_id";
-
             paymentId.value = response.razorpay_payment_id;
-
             form.appendChild(paymentId);
 
-
-            // Order ID
             var orderId = document.createElement("input");
-
             orderId.type = "hidden";
-
             orderId.name = "razorpay_order_id";
-
             orderId.value = response.razorpay_order_id;
-
             form.appendChild(orderId);
 
-
-            // Signature
             var signature = document.createElement("input");
-
             signature.type = "hidden";
-
             signature.name = "razorpay_signature";
-
             signature.value = response.razorpay_signature;
-
             form.appendChild(signature);
 
-
-            // Add form to page
             document.body.appendChild(form);
-
-
-            // Submit form
             form.submit();
-
         }
-
     };
 
-
-    // Create Razorpay instance
     var rzp = new Razorpay(options);
 
-
-    // Open Razorpay
     document.getElementById("pay-button").onclick = function(e) {
-
         rzp.open();
-
         e.preventDefault();
-
     };
-
 </script>
-
-</body>
-
-</html>
+{% endblock %}

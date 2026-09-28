@@ -1,28 +1,28 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Admin Dashboard</title>
-</head>
-<body>
-<!-- Flash messages -->
-{% with messages = get_flashed_messages(with_categories=true) %}
-  {% for category, message in messages %}
-    <p style="color:green;">{{ message }}</p>
-  {% endfor %}
-{% endwith %}
+{% extends "admin/admin_base.html" %}
 
-<h2>Welcome, {{ admin_name }}</h2>
+{% block title %}Admin Dashboard - SmartCart{% endblock %}
+{% block admin_page_title %}Dashboard{% endblock %}
 
-<!-- Logout Button -->
-<a href="/admin-logout">Logout</a>
+{% block admin_content %}
+<div class="container-narrow">
+    <div style="margin-bottom: 2rem;">
+        <h1>Welcome, {{ admin_name }}</h1>
+        <p>SmartCart Administration Panel</p>
+    </div>
 
-<p>This is your admin dashboard.</p>
-<a href="/admin/add-item">Add Product</a><br><br>
-
-<a href="/admin/item-list">View All Products</a><br><br>
-
-
-<a href="/admin/profile">View profile</a>
-
-</body>
-</html>
+    <div class="card">
+        <h3 style="margin-bottom: 1rem;">Management Actions</h3>
+        <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+            <a href="{{ url_for('item_list') }}" class="btn btn-primary">
+                View Products
+            </a>
+            <a href="{{ url_for('add_item_page') }}" class="btn btn-secondary">
+                Add New Product
+            </a>
+            <a href="{{ url_for('admin_profile') }}" class="btn btn-secondary">
+                My Profile
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

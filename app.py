@@ -5,7 +5,7 @@
 
 from flask import Flask, render_template, request, redirect, session, flash,make_response
 from flask_mail import Mail, Message
-import mysql.connector
+import sqlite3
 import bcrypt
 import random
 import config
@@ -47,20 +47,101 @@ app.config['ADMIN_UPLOAD_FOLDER'] = config.ADMIN_UPLOAD_FOLDER
 
 def get_db_connection():
     """
-    Creates and returns a connection to the MySQL database.
+    Creates and returns a connection to the SQLite database.
     """
-
-    conn = mysql.connector.connect(
-        host=config.DB_HOST,
-        user=config.DB_USER,
-        password=config.DB_PASSWORD,
-        database=config.DB_NAME
-    )
-
+    conn = sqlite3.connect(config.DATABASE)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
     return conn
+
+
+def init_db():
+    """
+    Initializes the SQLite database with the required schema if tables do not exist.
+    Safe to run multiple times without data loss or dropping tables.
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS admin (
+        admin_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        profile_image TEXT
+    );
+    """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS users (
+        user_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        is_verified INTEGER DEFAULT 0,
+        created_at TEXT DEFAULT (datetime('now', 'localtime'))
+    );
+    """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS products (
+        product_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        description TEXT,
+        category TEXT,
+        price REAL NOT NULL,
+        image TEXT,
+        created_at TEXT DEFAULT (datetime('now', 'localtime'))
+    );
+    """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS orders (
+        order_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        razorpay_order_id TEXT,
+        razorpay_payment_id TEXT,
+        amount REAL NOT NULL,
+        payment_status TEXT DEFAULT 'pending',
+        customer_name TEXT,
+        customer_phone TEXT,
+        shipping_address TEXT,
+        shipping_city TEXT,
+        shipping_state TEXT,
+        shipping_pincode TEXT,
+        created_at TEXT DEFAULT (datetime('now', 'localtime')),
+        FOREIGN KEY (user_id) REFERENCES users(user_id)
+    );
+    """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS order_items (
+        order_item_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        order_id INTEGER NOT NULL,
+        product_id INTEGER,
+        product_name TEXT NOT NULL,
+        quantity INTEGER NOT NULL,
+        price REAL NOT NULL,
+        created_at TEXT DEFAULT (datetime('now', 'localtime')),
+        FOREIGN KEY (order_id) REFERENCES orders(order_id) ON DELETE CASCADE,
+        FOREIGN KEY (product_id) REFERENCES products(product_id)
+    );
+    """)
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+
+# Ensure database tables exist on startup
+init_db()
 razorpay_client = razorpay.Client(
     auth=(config.RAZORPAY_KEY_ID, config.RAZORPAY_KEY_SECRET)
 )
+
+
+# =========================================================
+# HOME / LANDING PAGE
+# =========================================================
+
+@app.route('/')
+def index():
+    return render_template('index.html')
 
 
 # =========================================================
@@ -91,10 +172,10 @@ def admin_signup():
     # -----------------------------------------------------
 
     conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor()
 
     cursor.execute(
-        "SELECT admin_id FROM admin WHERE email = %s",
+        "SELECT admin_id FROM admin WHERE email = ?",
         (email,)
     )
 
@@ -203,7 +284,7 @@ def verify_otp_post():
     hashed_password = bcrypt.hashpw(
         password.encode('utf-8'),
         bcrypt.gensalt()
-    )
+    ).decode('utf-8')
 
 
     # -----------------------------------------------------
@@ -216,7 +297,7 @@ def verify_otp_post():
     cursor.execute(
         """
         INSERT INTO admin (name, email, password)
-        VALUES (%s, %s, %s)
+        VALUES (?, ?, ?)
         """,
         (
             session['signup_name'],
@@ -265,9 +346,9 @@ def admin_login():
 
     # Step 1: Check if admin email exists
     conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor()
 
-    cursor.execute("SELECT * FROM admin WHERE email=%s", (email,))
+    cursor.execute("SELECT * FROM admin WHERE email=?", (email,))
     admin = cursor.fetchone()
 
     cursor.close()
@@ -278,7 +359,9 @@ def admin_login():
         return redirect('/admin-login')
 
     # Step 2: Compare entered password with hashed password
-    stored_hashed_password = admin['password'].encode('utf-8')
+    stored_hashed_password = admin['password']
+    if isinstance(stored_hashed_password, str):
+        stored_hashed_password = stored_hashed_password.encode('utf-8')
 
     if not bcrypt.checkpw(password.encode('utf-8'), stored_hashed_password):
         flash("Incorrect password! Try again.", "danger")
@@ -291,6 +374,118 @@ def admin_login():
 
     flash("Login Successful!", "success")
     return redirect('/admin-dashboard')
+
+
+# =================================================================
+# ADMIN FORGOT PASSWORD - REQUEST OTP
+# =================================================================
+@app.route('/admin-forgot-password', methods=['GET', 'POST'])
+def admin_forgot_password():
+    if request.method == 'GET':
+        return render_template('admin/forgot_password.html')
+
+    email = request.form.get('email', '').strip().lower()
+    if not email:
+        flash("Email address is required!", "danger")
+        return redirect('/admin-forgot-password')
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT admin_id FROM admin WHERE email=?", (email,))
+    admin = cursor.fetchone()
+    cursor.close()
+    conn.close()
+
+    if not admin:
+        flash("No admin account found with that email address.", "danger")
+        return redirect('/admin-forgot-password')
+
+    otp = str(random.randint(100000, 999999))
+    session['admin_forgot_email'] = email
+    session['admin_forgot_otp'] = otp
+
+    try:
+        msg = Message(
+            subject="SmartCart Admin - Password Reset OTP",
+            sender=config.MAIL_USERNAME,
+            recipients=[email]
+        )
+        msg.body = f"Your SmartCart Admin password reset OTP is: {otp}\n\nDo not share this OTP with anyone."
+        mail.send(msg)
+    except Exception as e:
+        print("MAIL ERROR:", e)
+
+    flash("Password reset OTP sent to your email!", "success")
+    return redirect('/admin-forgot-verify-otp')
+
+
+# =================================================================
+# ADMIN FORGOT PASSWORD - VERIFY OTP
+# =================================================================
+@app.route('/admin-forgot-verify-otp', methods=['GET', 'POST'])
+def admin_forgot_verify_otp():
+    if 'admin_forgot_email' not in session:
+        flash("Session expired. Please request a new OTP.", "danger")
+        return redirect('/admin-forgot-password')
+
+    if request.method == 'GET':
+        return render_template('admin/forgot_verify_otp.html', email=session['admin_forgot_email'])
+
+    entered_otp = request.form.get('otp', '').strip()
+    stored_otp = session.get('admin_forgot_otp', '')
+
+    if entered_otp != stored_otp:
+        flash("Invalid OTP! Please enter the correct code.", "danger")
+        return redirect('/admin-forgot-verify-otp')
+
+    session['admin_forgot_verified'] = True
+    flash("OTP verified! Please create your new password.", "success")
+    return redirect('/admin-forgot-reset-password')
+
+
+# =================================================================
+# ADMIN FORGOT PASSWORD - RESET PASSWORD
+# =================================================================
+@app.route('/admin-forgot-reset-password', methods=['GET', 'POST'])
+def admin_forgot_reset_password():
+    if 'admin_forgot_email' not in session or not session.get('admin_forgot_verified'):
+        flash("Please verify your OTP first.", "danger")
+        return redirect('/admin-forgot-password')
+
+    if request.method == 'GET':
+        return render_template('admin/reset_password.html', email=session['admin_forgot_email'])
+
+    password = request.form.get('password', '')
+    confirm_password = request.form.get('confirm_password', '')
+
+    if not password or not confirm_password:
+        flash("Both password fields are required.", "danger")
+        return redirect('/admin-forgot-reset-password')
+
+    if len(password) < 6:
+        flash("Password must be at least 6 characters.", "danger")
+        return redirect('/admin-forgot-reset-password')
+
+    if password != confirm_password:
+        flash("Passwords do not match!", "danger")
+        return redirect('/admin-forgot-reset-password')
+
+    hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE admin SET password=? WHERE email=?", (hashed_password, session['admin_forgot_email']))
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    session.pop('admin_forgot_email', None)
+    session.pop('admin_forgot_otp', None)
+    session.pop('admin_forgot_verified', None)
+
+    flash("Password reset successfully! Please login with your new password.", "success")
+    return redirect('/admin-login')
+
 
 
 
@@ -384,7 +579,7 @@ def add_item():
     cursor = conn.cursor()
 
     cursor.execute(
-        "INSERT INTO products (name, description, category, price, image) VALUES (%s, %s, %s, %s, %s)",
+        "INSERT INTO products (name, description, category, price, image) VALUES (?, ?, ?, ?, ?)",
         (name, description, category, price, filename)
     )
 
@@ -410,7 +605,7 @@ def item_list():
     category_filter = request.args.get('category', '')
 
     conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor()
 
     # 1️⃣ Fetch category list for dropdown
     cursor.execute("SELECT DISTINCT category FROM products")
@@ -421,11 +616,11 @@ def item_list():
     params = []
 
     if search:
-        query += " AND name LIKE %s"
+        query += " AND name LIKE ?"
         params.append("%" + search + "%")
 
     if category_filter:
-        query += " AND category = %s"
+        query += " AND category = ?"
         params.append(category_filter)
 
     cursor.execute(query, params)
@@ -455,9 +650,9 @@ def view_item(item_id):
         return redirect('/admin-login')
 
     conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor()
 
-    cursor.execute("SELECT * FROM products WHERE product_id = %s", (item_id,))
+    cursor.execute("SELECT * FROM products WHERE product_id = ?", (item_id,))
     product = cursor.fetchone()
 
     cursor.close()
@@ -478,9 +673,9 @@ def update_item_page(item_id):
 
     # Fetch product data
     conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor()
 
-    cursor.execute("SELECT * FROM products WHERE product_id = %s", (item_id,))
+    cursor.execute("SELECT * FROM products WHERE product_id = ?", (item_id,))
     product = cursor.fetchone()
 
     cursor.close()
@@ -511,8 +706,8 @@ def update_item(item_id):
 
     # 2️⃣ Fetch old product data
     conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM products WHERE product_id = %s", (item_id,))
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM products WHERE product_id = ?", (item_id,))
     product = cursor.fetchone()
 
     if not product:
@@ -546,8 +741,8 @@ def update_item(item_id):
     # 4️⃣ Update product in the database
     cursor.execute("""
         UPDATE products
-        SET name=%s, description=%s, category=%s, price=%s, image=%s
-        WHERE product_id=%s
+        SET name=?, description=?, category=?, price=?, image=?
+        WHERE product_id=?
     """, (name, description, category, price, final_image_name, item_id))
 
     conn.commit()
@@ -565,10 +760,10 @@ def delete_item(item_id):
         return redirect('/admin-login')
 
     conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor()
 
     # 1️⃣ Fetch product to get image name
-    cursor.execute("SELECT image FROM products WHERE product_id=%s", (item_id,))
+    cursor.execute("SELECT image FROM products WHERE product_id=?", (item_id,))
     product = cursor.fetchone()
 
     if not product:
@@ -583,7 +778,7 @@ def delete_item(item_id):
         os.remove(image_path)
 
     # 2️⃣ Delete product from DB
-    cursor.execute("DELETE FROM products WHERE product_id=%s", (item_id,))
+    cursor.execute("DELETE FROM products WHERE product_id=?", (item_id,))
     conn.commit()
 
     cursor.close()
@@ -604,9 +799,9 @@ def admin_profile():
     admin_id = session['admin_id']
 
     conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor()
 
-    cursor.execute("SELECT * FROM admin WHERE admin_id = %s", (admin_id,))
+    cursor.execute("SELECT * FROM admin WHERE admin_id = ?", (admin_id,))
     admin = cursor.fetchone()
 
     cursor.close()
@@ -632,17 +827,17 @@ def admin_profile_update():
     new_image = request.files['profile_image']
 
     conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor()
 
     # 2️⃣ Fetch old admin data
-    cursor.execute("SELECT * FROM admin WHERE admin_id = %s", (admin_id,))
+    cursor.execute("SELECT * FROM admin WHERE admin_id = ?", (admin_id,))
     admin = cursor.fetchone()
 
     old_image_name = admin['profile_image']
 
     # 3️⃣ Update password only if entered
     if new_password:
-        hashed_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt())
+        hashed_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
     else:
         hashed_password = admin['password']  # keep old password
 
@@ -669,8 +864,8 @@ def admin_profile_update():
     # 5️⃣ Update database
     cursor.execute("""
         UPDATE admin
-        SET name=%s, email=%s, password=%s, profile_image=%s
-        WHERE admin_id=%s
+        SET name=?, email=?, password=?, profile_image=?
+        WHERE admin_id=?
     """, (name, email, hashed_password, final_image_name, admin_id))
 
     conn.commit()
@@ -1030,7 +1225,7 @@ def user_create_password():
             '''
             INSERT INTO users
             (name, email, password, is_verified)
-            VALUES (%s, %s, %s, %s)
+            VALUES (?, ?, ?, ?)
             ''',
             (
                 name,
@@ -1043,7 +1238,7 @@ def user_create_password():
         conn.commit()
 
 
-    except mysql.connector.Error as e:
+    except sqlite3.Error as e:
 
         conn.rollback()
 
@@ -1136,7 +1331,7 @@ def user_login():
     # -------------------------------------------------------------
 
     conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor()
 
     cursor.execute(
         '''
@@ -1147,7 +1342,7 @@ def user_login():
             password,
             is_verified
         FROM users
-        WHERE email=%s
+        WHERE email=?
         ''',
         (email,)
     )
@@ -1190,9 +1385,13 @@ def user_login():
     # CHECK PASSWORD
     # -------------------------------------------------------------
 
+    stored_hashed_password = user['password']
+    if isinstance(stored_hashed_password, str):
+        stored_hashed_password = stored_hashed_password.encode('utf-8')
+
     if not bcrypt.checkpw(
         password.encode('utf-8'),
-        user['password'].encode('utf-8')
+        stored_hashed_password
     ):
 
         flash(
@@ -1224,6 +1423,121 @@ def user_login():
     )
 
     return redirect('/user-dashboard')
+
+
+# =================================================================
+# USER FORGOT PASSWORD - REQUEST OTP
+# =================================================================
+@app.route('/user-forgot-password', methods=['GET', 'POST'])
+def user_forgot_password():
+    if request.method == 'GET':
+        return render_template('user/forgot_password.html')
+
+    email = request.form.get('email', '').strip().lower()
+    if not email:
+        flash("Email address is required!", "danger")
+        return redirect('/user-forgot-password')
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT user_id, name FROM users WHERE email=?", (email,))
+    user = cursor.fetchone()
+    cursor.close()
+    conn.close()
+
+    if not user:
+        flash("No account found with that email address.", "danger")
+        return redirect('/user-forgot-password')
+
+    otp = str(random.randint(100000, 999999))
+    session['user_forgot_email'] = email
+    session['user_forgot_otp'] = otp
+
+    try:
+        msg = Message(
+            subject="SmartCart - Password Reset OTP",
+            sender=config.MAIL_USERNAME,
+            recipients=[email]
+        )
+        msg.body = f"Hello {user.get('name', 'Customer')},\n\nYour SmartCart password reset OTP is: {otp}\n\nDo not share this OTP with anyone.\n\nRegards,\nSmartCart Team"
+        mail.send(msg)
+    except Exception as e:
+        print("MAIL ERROR:", e)
+
+    flash("Password reset OTP sent to your email!", "success")
+    return redirect('/user-forgot-verify-otp')
+
+
+# =================================================================
+# USER FORGOT PASSWORD - VERIFY OTP
+# =================================================================
+@app.route('/user-forgot-verify-otp', methods=['GET', 'POST'])
+def user_forgot_verify_otp():
+    if 'user_forgot_email' not in session:
+        flash("Session expired. Please request a new OTP.", "danger")
+        return redirect('/user-forgot-password')
+
+    if request.method == 'GET':
+        return render_template('user/forgot_verify_otp.html', email=session['user_forgot_email'])
+
+    entered_otp = request.form.get('otp', '').strip()
+    stored_otp = session.get('user_forgot_otp', '')
+
+    if entered_otp != stored_otp:
+        flash("Invalid OTP! Please enter the correct code.", "danger")
+        return redirect('/user-forgot-verify-otp')
+
+    session['user_forgot_verified'] = True
+    flash("OTP verified! Please create your new password.", "success")
+    return redirect('/user-forgot-reset-password')
+
+
+# =================================================================
+# USER FORGOT PASSWORD - RESET PASSWORD
+# =================================================================
+@app.route('/user-forgot-reset-password', methods=['GET', 'POST'])
+def user_forgot_reset_password():
+    if 'user_forgot_email' not in session or not session.get('user_forgot_verified'):
+        flash("Please verify your OTP first.", "danger")
+        return redirect('/user-forgot-password')
+
+    if request.method == 'GET':
+        return render_template('user/reset_password.html', email=session['user_forgot_email'])
+
+    password = request.form.get('password', '')
+    confirm_password = request.form.get('confirm_password', '')
+
+    if not password or not confirm_password:
+        flash("Both password fields are required.", "danger")
+        return redirect('/user-forgot-reset-password')
+
+    if len(password) < 6:
+        flash("Password must be at least 6 characters.", "danger")
+        return redirect('/user-forgot-reset-password')
+
+    if password != confirm_password:
+        flash("Passwords do not match!", "danger")
+        return redirect('/user-forgot-reset-password')
+
+    hashed_password = bcrypt.hashpw(
+        password.encode('utf-8'),
+        bcrypt.gensalt()
+    ).decode('utf-8')
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE users SET password=? WHERE email=?", (hashed_password, session['user_forgot_email']))
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    session.pop('user_forgot_email', None)
+    session.pop('user_forgot_otp', None)
+    session.pop('user_forgot_verified', None)
+
+    flash("Password updated successfully! Please login with your new password.", "success")
+    return redirect('/user-login')
+
 
 # =================================================================
 # USER DASHBOARD
@@ -1286,7 +1600,7 @@ def user_products():
     category_filter = request.args.get('category', '')
 
     conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor()
 
     # Fetch categories for filter dropdown
     cursor.execute("SELECT DISTINCT category FROM products")
@@ -1297,11 +1611,11 @@ def user_products():
     params = []
 
     if search:
-        query += " AND name LIKE %s"
+        query += " AND name LIKE ?"
         params.append("%" + search + "%")
 
     if category_filter:
-        query += " AND category = %s"
+        query += " AND category = ?"
         params.append(category_filter)
 
     cursor.execute(query, params)
@@ -1326,9 +1640,9 @@ def user_product_details(product_id):
         return redirect('/user-login')
 
     conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor()
 
-    cursor.execute("SELECT * FROM products WHERE product_id = %s", (product_id,))
+    cursor.execute("SELECT * FROM products WHERE product_id = ?", (product_id,))
     product = cursor.fetchone()
 
     cursor.close()
@@ -1358,8 +1672,8 @@ def add_to_cart(product_id):
 
     # Get product
     conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM products WHERE product_id=%s", (product_id,))
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM products WHERE product_id=?", (product_id,))
     product = cursor.fetchone()
     cursor.close()
     conn.close()
@@ -1463,13 +1777,13 @@ def buy_now(product_id):
 
     # Database connection
     conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor()
 
     # Get product
     cursor.execute("""
         SELECT *
         FROM products
-        WHERE product_id = %s
+        WHERE product_id = ?
     """, (product_id,))
 
     product = cursor.fetchone()
@@ -1507,12 +1821,12 @@ def proceed_to_pay(product_id):
 
     # Get product
     conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor()
 
     cursor.execute("""
         SELECT *
         FROM products
-        WHERE product_id = %s
+        WHERE product_id = ?
     """, (product_id,))
 
     product = cursor.fetchone()
@@ -1561,12 +1875,12 @@ def payment(product_id):
 
     # Get product
     conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor()
 
     cursor.execute("""
         SELECT *
         FROM products
-        WHERE product_id = %s
+        WHERE product_id = ?
     """, (product_id,))
 
     product = cursor.fetchone()
@@ -1736,12 +2050,12 @@ def verify_payment():
     # -----------------------------------------------------
 
     conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor()
 
     cursor.execute("""
         SELECT *
         FROM products
-        WHERE product_id = %s
+        WHERE product_id = ?
     """, (product_id,))
 
     product = cursor.fetchone()
@@ -1821,17 +2135,17 @@ def verify_payment():
             )
             VALUES
             (
-                %s,
-                %s,
-                %s,
-                %s,
-                %s,
-                %s,
-                %s,
-                %s,
-                %s,
-                %s,
-                %s
+                ?,
+                ?,
+                ?,
+                ?,
+                ?,
+                ?,
+                ?,
+                ?,
+                ?,
+                ?,
+                ?
             )
         """, (
             user_id,
@@ -1870,11 +2184,11 @@ def verify_payment():
             )
             VALUES
             (
-                %s,
-                %s,
-                %s,
-                %s,
-                %s
+                ?,
+                ?,
+                ?,
+                ?,
+                ?
             )
         """, (
             order_db_id,
@@ -1968,14 +2282,14 @@ def order_success(order_id):
     user_id = session['user_id']
 
     conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor()
 
     # Get order
     cursor.execute("""
         SELECT *
         FROM orders
-        WHERE order_id = %s
-        AND user_id = %s
+        WHERE order_id = ?
+        AND user_id = ?
     """, (order_id, user_id))
 
     order = cursor.fetchone()
@@ -1984,7 +2298,7 @@ def order_success(order_id):
     cursor.execute("""
         SELECT *
         FROM order_items
-        WHERE order_id = %s
+        WHERE order_id = ?
     """, (order_id,))
 
     order_items = cursor.fetchall()
@@ -2013,12 +2327,12 @@ def my_orders():
     user_id = session['user_id']
 
     conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor()
 
     cursor.execute("""
         SELECT *
         FROM orders
-        WHERE user_id = %s
+        WHERE user_id = ?
         ORDER BY created_at DESC
     """, (user_id,))
 
@@ -2044,14 +2358,14 @@ def download_invoice(order_id):
     user_id = session['user_id']
 
     conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor()
 
     # Get order
     cursor.execute("""
         SELECT *
         FROM orders
-        WHERE order_id = %s
-        AND user_id = %s
+        WHERE order_id = ?
+        AND user_id = ?
     """, (order_id, user_id))
 
     order = cursor.fetchone()
@@ -2060,7 +2374,7 @@ def download_invoice(order_id):
     cursor.execute("""
         SELECT *
         FROM order_items
-        WHERE order_id = %s
+        WHERE order_id = ?
     """, (order_id,))
 
     order_items = cursor.fetchall()

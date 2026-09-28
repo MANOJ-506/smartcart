@@ -1,60 +1,81 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Your Cart</title>
-</head>
-<body>
+{% extends "user/user_base.html" %}
 
-<h2>Your Cart</h2>
+{% block title %}Shopping Cart - SmartCart{% endblock %}
 
-<!-- Flash Messages -->
-{% with messages = get_flashed_messages(with_categories=true) %}
-  {% for category, message in messages %}
-    <p style="color:red;">{{ message }}</p>
-  {% endfor %}
-{% endwith %}
+{% block user_content %}
+<div>
+    <div style="margin-bottom: 1.5rem;">
+        <h1>Shopping Cart</h1>
+    </div>
 
-{% if not cart %}
-    <p>Your cart is empty.</p>
-    <a href="/user/products">Shop Now</a>
-{% else %}
+    {% if not cart %}
+    <div style="text-align: center; padding: 4rem 1rem; border: 1px dashed var(--border); border-radius: var(--radius);">
+        <p style="font-size: 1.1rem; margin-bottom: 1rem;">Your cart is currently empty.</p>
+        <a href="{{ url_for('user_products') }}" class="btn btn-primary">
+            Start Shopping
+        </a>
+    </div>
+    {% else %}
+    <div class="table-wrapper">
+        <table class="cart-table" style="margin-bottom: 0;">
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Price</th>
+                    <th>Quantity</th>
+                    <th>Total</th>
+                    <th style="text-align: right;">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for pid, item in cart.items() %}
+                <tr>
+                    <td>
+                        <div class="cart-item-info">
+                            {% if item.image %}
+                            <img src="/static/uploads/product_images/{{ item.image }}" alt="{{ item.name }}" class="cart-item-img">
+                            {% endif %}
+                            <div>
+                                <div style="font-weight: 600; font-size: 0.95rem;">{{ item.name }}</div>
+                                <a href="/user/product/{{ pid }}" style="font-size: 0.8rem;">View details</a>
+                            </div>
+                        </div>
+                    </td>
+                    <td>₹{{ "%.2f"|format(item.price|float) }}</td>
+                    <td>
+                        <div class="qty-stepper">
+                            <a href="/user/cart/decrease/{{ pid }}" class="qty-btn" aria-label="Decrease">&minus;</a>
+                            <span class="qty-num">{{ item.quantity }}</span>
+                            <a href="/user/cart/increase/{{ pid }}" class="qty-btn" aria-label="Increase">+</a>
+                        </div>
+                    </td>
+                    <td><strong>₹{{ "%.2f"|format((item.price * item.quantity)|float) }}</strong></td>
+                    <td style="text-align: right;">
+                        <div style="display: inline-flex; gap: 0.5rem; align-items: center;">
+                            <a href="/user/buy-now/{{ pid }}" class="btn btn-sm btn-primary">
+                                Buy
+                            </a>
+                            <a href="/user/cart/remove/{{ pid }}" class="btn btn-sm btn-outline" style="color: var(--danger) !important; border-color: var(--border);">
+                                Remove
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 
-<table border="1" cellpadding="10">
-    <tr>
-        <th>Image</th>
-        <th>Name</th>
-        <th>Price</th>
-        <th>Quantity</th>
-        <th>Total</th>
-        <th>Action</th>
-    </tr>
-
-    {% for pid, item in cart.items() %}
-    <tr>
-        <td><img src="/static/uploads/product_images/{{ item.image }}" width="80"></td>
-        <td>{{ item.name }}</td>
-        <td>₹{{ item.price }}</td>
-
-        <td>
-            <a href="/user/cart/decrease/{{ pid }}"> - </a>
-            {{ item.quantity }}
-            <a href="/user/cart/increase/{{ pid }}"> + </a>
-        </td>
-
-        <td>₹{{ item.price * item.quantity }}</td>
-
-        <td><a href="/user/cart/remove/{{ pid }}">Remove</a></td>
-    </tr>
-    {% endfor %}
-</table>
-
-<br>
-
-<h3>Grand Total: ₹{{ grand_total }}</h3>
-
-<a href="/user/products">Continue Shopping</a>
-
-{% endif %}
-
-</body>
-</html>
+    <div class="cart-footer">
+        <a href="{{ url_for('user_products') }}" class="btn btn-secondary">
+            &larr; Continue Shopping
+        </a>
+        <div style="display: flex; align-items: center; gap: 1.5rem;">
+            <div class="cart-total-amount">
+                Total: ₹{{ "%.2f"|format(grand_total|float) }}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

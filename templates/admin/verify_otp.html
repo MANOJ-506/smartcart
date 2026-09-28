@@ -1,28 +1,65 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Verify OTP</title>
-</head>
-<body>
+{% extends "base.html" %}
 
-<h2>Verify OTP</h2>
+{% block title %}Verify Admin OTP - SmartCart{% endblock %}
 
-{% with messages = get_flashed_messages(with_categories=true) %}
-  {% for category, message in messages %}
-    <p style="color:red;">{{ message }}</p>
-  {% endfor %}
-{% endwith %}
+{% block layout %}
+<div class="auth-wrapper">
+    <div class="auth-card">
+        <div class="auth-header">
+            <a href="/" class="brand-logo">
+                <i class="fa-solid fa-cube"></i> SmartCart <span class="badge">Admin</span>
+            </a>
+            <h1>Verify OTP</h1>
+            <p>Enter the OTP and set your password</p>
+        </div>
 
-<form method="POST" action="/verify-otp">
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="alerts-container">
+                {% for category, message in messages %}
+                <div class="alert alert-{{ category if category != 'error' else 'danger' }}">
+                    <span>{{ message }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        {% endwith %}
 
-    <label>Enter OTP:</label><br>
-    <input type="text" name="otp" required><br><br>
+        <form method="POST" action="/verify-otp">
+            <div class="form-group">
+                <label class="form-label" for="admin_otp">Enter OTP</label>
+                <input
+                    type="text"
+                    id="admin_otp"
+                    name="otp"
+                    class="form-control"
+                    placeholder="Enter 6-digit code"
+                    required
+                    autofocus
+                >
+            </div>
 
-    <label>Create Password:</label><br>
-    <input type="password" name="password" required><br><br>
+            <div class="form-group">
+                <label class="form-label" for="admin_password">Create Password</label>
+                <input
+                    type="password"
+                    id="admin_password"
+                    name="password"
+                    class="form-control"
+                    placeholder="Enter password"
+                    required
+                >
+            </div>
 
-    <button type="submit">Verify & Register</button>
-</form>
+            <button type="submit" class="btn btn-primary btn-block" style="margin-top: 1.25rem;">
+                Verify &amp; Register
+            </button>
+        </form>
 
-</body>
-</html>
+        <div class="auth-footer">
+            <a href="/admin-signup">Back to Signup</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

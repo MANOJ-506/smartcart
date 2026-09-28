@@ -1,36 +1,27 @@
+{% extends "user/user_base.html" %}
 
-<!DOCTYPE html>
-<html>
+{% block title %}Dashboard - SmartCart{% endblock %}
 
-<head>
-    <title>User Dashboard</title>
-</head>
+{% block user_content %}
+<div class="container-narrow" style="padding-top: 1rem;">
+    <div style="margin-bottom: 2rem;">
+        <h1>Welcome, {{ user_name }}</h1>
+        <p>{{ user_email }}</p>
+    </div>
 
-<body>
-
-<h2>Welcome, {{ user_name }}!</h2>
-
-<p>
-    Email: {{ user_email }}
-</p>
-
-<hr>
-
-<h3>User Dashboard</h3>
-
-<p>
-    Welcome to our E-Commerce Application.
-</p>
-
-<br>
-
-<a href="/user-logout">
-    Logout
-</a><br><br>
-<a href="/user/products">view products</a>
-<br><br>
-<a href="/user/cart">view cart</a>
-</body>
-
-</html>
-
+    <div class="card">
+        <h3 style="margin-bottom: 1rem;">Quick Navigation</h3>
+        <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+            <a href="{{ url_for('user_products') }}" class="btn btn-primary">
+                Browse Products
+            </a>
+            <a href="{{ url_for('view_cart') }}" class="btn btn-secondary">
+                View Cart ({{ session.get('cart', {})|length }})
+            </a>
+            <a href="{{ url_for('my_orders') }}" class="btn btn-secondary">
+                My Orders
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

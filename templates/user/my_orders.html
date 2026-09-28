@@ -1,143 +1,54 @@
-<!DOCTYPE html>
-<html>
+{% extends "user/user_base.html" %}
 
-<head>
+{% block title %}My Orders - SmartCart{% endblock %}
 
-    <title>My Orders</title>
-
-    <style>
-
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f5f5f5;
-        }
-
-        .container {
-            width: 800px;
-            margin: 50px auto;
-            background: white;
-            padding: 25px;
-            border-radius: 10px;
-            box-shadow: 0px 2px 10px rgba(0,0,0,0.1);
-        }
-
-        h2 {
-            text-align: center;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-
-        th,
-        td {
-            border: 1px solid #ddd;
-            padding: 12px;
-            text-align: center;
-        }
-
-        th {
-            background-color: #f2f2f2;
-        }
-
-        .btn {
-            display: inline-block;
-            padding: 7px 10px;
-            text-decoration: none;
-            color: white;
-            background-color: #007bff;
-            border-radius: 5px;
-        }
-
-        .empty {
-            text-align: center;
-            padding: 30px;
-        }
-
-    </style>
-
-</head>
-
-<body>
-
-<div class="container">
-
-    <h2>My Orders</h2>
-
-
-    {% if orders %}
-
-    <table>
-
-        <tr>
-
-            <th>Order ID</th>
-
-            <th>Amount</th>
-
-            <th>Payment Status</th>
-
-            <th>Date</th>
-
-            <th>Invoice</th>
-
-        </tr>
-
-
-        {% for order in orders %}
-
-        <tr>
-
-            <td>
-                #{{ order.order_id }}
-            </td>
-
-            <td>
-                ₹{{ order.amount }}
-            </td>
-
-            <td>
-                {{ order.payment_status }}
-            </td>
-
-            <td>
-                {{ order.created_at }}
-            </td>
-
-            <td>
-
-                <a
-                    href="/user/download-invoice/{{ order.order_id }}"
-                    class="btn">
-                    Download
-                </a>
-
-            </td>
-
-        </tr>
-
-        {% endfor %}
-
-    </table>
-
-    {% else %}
-
-    <div class="empty">
-
-        <p>You haven't placed any orders yet.</p>
-
-        <a href="/user/products">
-            Start Shopping
+{% block user_content %}
+<div>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+        <h1>My Orders</h1>
+        <a href="{{ url_for('user_products') }}" class="btn btn-secondary">
+            Browse Products
         </a>
-
     </div>
 
+    {% if orders %}
+    <div class="table-wrapper">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Order ID</th>
+                    <th>Date</th>
+                    <th>Amount</th>
+                    <th>Payment Status</th>
+                    <th style="text-align: right;">Invoice</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in orders %}
+                <tr>
+                    <td><strong>#{{ order.order_id }}</strong></td>
+                    <td style="color: var(--text-muted);">{{ order.created_at }}</td>
+                    <td><strong>₹{{ "%.2f"|format(order.amount|float) if order.amount else "0.00" }}</strong></td>
+                    <td>
+                        <span class="badge badge-success">{{ order.payment_status|upper }}</span>
+                    </td>
+                    <td style="text-align: right;">
+                        <a href="/user/download-invoice/{{ order.order_id }}" class="btn btn-sm btn-outline">
+                            Download PDF
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div style="text-align: center; padding: 4rem 1rem; border: 1px dashed var(--border); border-radius: var(--radius);">
+        <p style="font-size: 1.1rem; margin-bottom: 1rem;">You haven't placed any orders yet.</p>
+        <a href="{{ url_for('user_products') }}" class="btn btn-primary">
+            Start Shopping
+        </a>
+    </div>
     {% endif %}
-
 </div>
-
-</body>
-
-</html>
+{% endblock %}

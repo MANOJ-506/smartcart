@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Verify Admin OTP - Reset Password - SmartCart{% endblock %}
+
+{% block layout %}
+<div class="auth-wrapper">
+    <div class="auth-card">
+        <div class="auth-header">
+            <a href="{{ url_for('admin_login') }}" class="brand-logo">
+                <i class="fa-solid fa-cube"></i> SmartCart <span class="badge">Admin</span>
+            </a>
+            <h1>Verify Admin OTP</h1>
+            <p>Enter the 6-digit OTP sent to <strong>{{ email }}</strong></p>
+        </div>
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="alerts-container">
+                {% for category, message in messages %}
+                <div class="alert alert-{{ category if category != 'error' else 'danger' }}">
+                    <span>{{ message }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        {% endwith %}
+
+        <form method="POST" action="/admin-forgot-verify-otp">
+            <div class="form-group">
+                <label class="form-label" for="admin_forgot_otp">6-Digit OTP</label>
+                <input
+                    type="text"
+                    id="admin_forgot_otp"
+                    name="otp"
+                    class="form-control"
+                    placeholder="Enter 6-digit OTP"
+                    maxlength="6"
+                    required
+                    autofocus
+                >
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block">
+                Verify OTP
+            </button>
+        </form>
+
+        <div class="auth-footer">
+            <a href="/admin-forgot-password">Resend OTP / Change Email</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,84 +1,71 @@
+{% extends "base.html" %}
 
-<!DOCTYPE html>
-<html>
+{% block title %}User Login - SmartCart{% endblock %}
 
-<head>
-    <title>User Login</title>
-</head>
+{% block layout %}
+<div class="auth-wrapper">
+    <div class="auth-card">
+        <div class="auth-header">
+            <a href="/" class="brand-logo">
+                <i class="fa-solid fa-cart-shopping"></i> Smart<span>Cart</span>
+            </a>
+            <h1>Welcome Back</h1>
+            <p>Sign in to your account</p>
+        </div>
 
-<body>
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="alerts-container">
+                {% for category, message in messages %}
+                <div class="alert alert-{{ category if category != 'error' else 'danger' }}">
+                    <span>{{ message }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        {% endwith %}
 
-<h2>User Login</h2>
+        <form method="POST" action="/user-login">
+            <div class="form-group">
+                <label class="form-label" for="login_email">Email</label>
+                <input
+                    type="email"
+                    id="login_email"
+                    name="email"
+                    class="form-control"
+                    placeholder="name@example.com"
+                    required
+                    autofocus
+                >
+            </div>
 
+            <div class="form-group">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                    <label class="form-label" for="login_password" style="margin-bottom: 0;">Password</label>
+                    <a href="/user-forgot-password" style="font-size: 0.8rem;">Forgot Password?</a>
+                </div>
+                <input
+                    type="password"
+                    id="login_password"
+                    name="password"
+                    class="form-control"
+                    placeholder="Enter your password"
+                    required
+                >
+            </div>
 
-<!-- =====================================================
-     FLASH MESSAGES
-====================================================== -->
+            <button type="submit" class="btn btn-primary btn-block" style="margin-top: 1.25rem;">
+                Login
+            </button>
+        </form>
 
-{% with messages = get_flashed_messages(with_categories=true) %}
-
-    {% for category, message in messages %}
-
-        <p style="color:red;">
-            {{ message }}
-        </p>
-
-    {% endfor %}
-
-{% endwith %}
-
-
-<!-- =====================================================
-     LOGIN FORM
-====================================================== -->
-
-<form method="POST" action="/user-login">
-
-    <label>
-        Email:
-    </label>
-
-    <br>
-
-    <input
-        type="email"
-        name="email"
-        required
-    >
-
-    <br><br>
-
-
-    <label>
-        Password:
-    </label>
-
-    <br>
-
-    <input
-        type="password"
-        name="password"
-        required
-    >
-
-    <br><br>
-
-
-    <button type="submit">
-        Login
-    </button>
-
-</form>
-
-
-<br>
-
-<a href="/user-register">
-    Don't have an account? Register
-</a>
-
-
-</body>
-
-</html>
-
+        <div class="auth-footer">
+            Don't have an account? <a href="/user-register">Create Account</a>
+            <div style="margin-top: 0.75rem; font-size: 0.8rem;">
+                <a href="/admin-login" style="color: var(--text-light);">Admin Login</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

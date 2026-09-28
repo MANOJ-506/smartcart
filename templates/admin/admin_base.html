@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block layout %}
+<div class="admin-layout">
+    <!-- Clean Admin Sidebar -->
+    <aside class="admin-sidebar">
+        <a href="{{ url_for('admin_dashboard') }}" class="admin-brand">
+            <i class="fa-solid fa-cube"></i> SmartCart <span class="badge">Admin</span>
+        </a>
+
+        <ul class="admin-nav">
+            <li>
+                <a href="{{ url_for('admin_dashboard') }}" class="{% if request.path == '/admin-dashboard' %}active{% endif %}">
+                    <i class="fa-solid fa-house"></i> Dashboard
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('item_list') }}" class="{% if '/admin/item-list' in request.path or '/admin/view-item' in request.path or '/admin/update-item' in request.path %}active{% endif %}">
+                    <i class="fa-solid fa-boxes-stacked"></i> Products
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('add_item_page') }}" class="{% if request.path == '/admin/add-item' %}active{% endif %}">
+                    <i class="fa-solid fa-plus"></i> Add Product
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('admin_profile') }}" class="{% if request.path == '/admin/profile' %}active{% endif %}">
+                    <i class="fa-solid fa-user"></i> Profile
+                </a>
+            </li>
+            <li style="margin-top: auto;">
+                <a href="{{ url_for('admin_logout') }}" style="color: var(--danger);">
+                    <i class="fa-solid fa-right-from-bracket"></i> Logout
+                </a>
+            </li>
+        </ul>
+    </aside>
+
+    <!-- Admin Main Body -->
+    <div class="admin-content">
+        <header class="admin-topbar">
+            <div style="font-weight: 600; font-size: 0.95rem;">
+                {% block admin_page_title %}Administration{% endblock %}
+            </div>
+            <div style="font-size: 0.875rem; color: var(--text-muted);">
+                Logged in as <strong>{{ session.get('admin_name', 'Admin') }}</strong>
+            </div>
+        </header>
+
+        <div class="admin-body">
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                <div class="alerts-container">
+                    {% for category, message in messages %}
+                    <div class="alert alert-{{ category if category != 'error' else 'danger' }}">
+                        <span>{{ message }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            {% endwith %}
+
+            {% block admin_content %}{% endblock %}
+        </div>
+    </div>
+</div>
+{% endblock %}

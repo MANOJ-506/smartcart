@@ -1,418 +1,274 @@
 <!DOCTYPE html>
 <html>
-
 <head>
-
     <meta charset="UTF-8">
-
-    <title>SmartCart Invoice</title>
-
+    <title>SmartCart Invoice - #{{ order.order_id }}</title>
     <style>
-
         @page {
             size: A4;
-            margin: 30px;
+            margin: 25px 30px;
         }
 
         body {
-            font-family: Arial, sans-serif;
-            font-size: 12px;
-            color: #222;
+            font-family: Helvetica, Arial, sans-serif;
+            font-size: 11px;
+            color: #1e293b;
+            line-height: 1.4;
             margin: 0;
             padding: 0;
         }
 
-        .header {
-            text-align: center;
-            border-bottom: 2px solid #222;
+        .header-table {
+            width: 100%;
+            border-bottom: 2px solid #2563eb;
             padding-bottom: 12px;
             margin-bottom: 20px;
         }
 
-        .header h1 {
+        .brand-title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2563eb;
             margin: 0;
-            font-size: 26px;
         }
 
-        .header p {
-            margin: 5px 0;
-            font-size: 13px;
+        .brand-sub {
+            font-size: 10px;
+            color: #64748b;
+            margin: 3px 0 0 0;
         }
 
-        .details {
+        .invoice-badge {
+            font-size: 18px;
+            font-weight: bold;
+            color: #0f172a;
+            text-align: right;
+            margin: 0;
+        }
+
+        .invoice-sub {
+            font-size: 10px;
+            color: #64748b;
+            text-align: right;
+            margin: 3px 0 0 0;
+        }
+
+        .two-col-table {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 15px;
         }
 
-        .details td {
+        .two-col-table td {
             width: 50%;
             vertical-align: top;
-            padding: 5px;
+            padding: 0 6px;
         }
 
-        .box {
-            border: 1px solid #cccccc;
-            padding: 12px;
+        .panel-box {
+            border: 1px solid #cbd5e1;
+            background-color: #f8fafc;
+            padding: 10px 12px;
         }
 
-        .box-title {
-            font-size: 14px;
+        .panel-title {
+            font-size: 11px;
             font-weight: bold;
-            margin-bottom: 10px;
-            padding-bottom: 6px;
-            border-bottom: 1px solid #dddddd;
+            color: #0f172a;
+            text-transform: uppercase;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 5px;
+            margin-bottom: 8px;
         }
 
-        .address-box {
-            border: 1px solid #cccccc;
-            padding: 12px;
+        .info-row {
+            margin-bottom: 5px;
+        }
+
+        .info-label {
+            color: #64748b;
+            font-weight: bold;
+        }
+
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            margin-bottom: 15px;
+        }
+
+        .items-table th {
+            background-color: #f1f5f9;
+            color: #0f172a;
+            font-size: 10px;
+            font-weight: bold;
+            text-transform: uppercase;
+            border: 1px solid #cbd5e1;
+            padding: 8px 10px;
+            text-align: left;
+        }
+
+        .items-table td {
+            border: 1px solid #cbd5e1;
+            padding: 8px 10px;
+            font-size: 11px;
+        }
+
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+
+        .summary-table {
+            width: 45%;
+            margin-left: auto;
+            border-collapse: collapse;
             margin-top: 10px;
             margin-bottom: 20px;
         }
 
-        .items {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 15px;
+        .summary-table td {
+            padding: 6px 8px;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 11px;
         }
 
-        .items th {
-            border: 1px solid #333333;
-            padding: 8px;
-            background-color: #eeeeee;
-            text-align: center;
-        }
-
-        .items td {
-            border: 1px solid #333333;
-            padding: 8px;
-        }
-
-        .center {
-            text-align: center;
-        }
-
-        .right {
-            text-align: right;
-        }
-
-        .summary {
-            width: 45%;
-            margin-left: auto;
-            margin-top: 15px;
-            border-collapse: collapse;
-        }
-
-        .summary td {
-            padding: 7px;
-            border-bottom: 1px solid #dddddd;
-        }
-
-        .grand-total td {
-            font-size: 15px;
+        .grand-total-row td {
+            font-size: 13px;
             font-weight: bold;
-            border-top: 2px solid #222222;
+            color: #2563eb;
+            border-top: 2px solid #2563eb;
+            border-bottom: 2px solid #2563eb;
+            background-color: #eff6ff;
         }
 
-        .payment-box {
-            border: 1px solid #cccccc;
-            padding: 12px;
-            margin-top: 20px;
+        .payment-status-box {
+            border: 1px solid #a7f3d0;
+            background-color: #ecfdf5;
+            padding: 10px 12px;
+            margin-top: 15px;
+            margin-bottom: 20px;
         }
 
         .footer {
+            border-top: 1px solid #cbd5e1;
+            padding-top: 12px;
             text-align: center;
-            border-top: 1px solid #cccccc;
-            margin-top: 30px;
-            padding-top: 10px;
-            color: #666666;
+            font-size: 9px;
+            color: #94a3b8;
+            margin-top: 25px;
         }
-
     </style>
-
 </head>
-
-
 <body>
 
+    <!-- Header Section -->
+    <table class="header-table" cellpadding="0" cellspacing="0">
+        <tr>
+            <td style="vertical-align: middle;">
+                <div class="brand-title">SmartCart</div>
+                <div class="brand-sub">Premium Online Marketplace &bull; GST Registered</div>
+            </td>
+            <td style="vertical-align: middle; text-align: right;">
+                <div class="invoice-badge">TAX INVOICE</div>
+                <div class="invoice-sub">Original for Recipient</div>
+            </td>
+        </tr>
+    </table>
 
-<!-- =====================================================
-     SMARTCART HEADER
-====================================================== -->
-
-<div class="header">
-
-    <h1>SmartCart</h1>
-
-    <p>Purchase Invoice</p>
-
-</div>
-
-
-
-<!-- =====================================================
-     INVOICE + CUSTOMER DETAILS
-====================================================== -->
-
-<table class="details">
-
-    <tr>
-
-        <!-- INVOICE DETAILS -->
-
-        <td>
-
-            <div class="box">
-
-                <div class="box-title">
-                    Invoice Details
+    <!-- Meta Details Section -->
+    <table class="two-col-table" cellpadding="0" cellspacing="0">
+        <tr>
+            <td style="padding-left: 0;">
+                <div class="panel-box">
+                    <div class="panel-title">Invoice Details</div>
+                    <div class="info-row"><span class="info-label">Invoice / Order ID:</span> #{{ order.order_id }}</div>
+                    <div class="info-row"><span class="info-label">Invoice Date:</span> {{ order.created_at }}</div>
+                    <div class="info-row"><span class="info-label">Customer Account ID:</span> #{{ order.user_id }}</div>
+                    <div class="info-row"><span class="info-label">Payment Mode:</span> Online Prepaid (Razorpay)</div>
                 </div>
-
-                <b>Order ID:</b>
-                {{ order.order_id }}
-
-                <br><br>
-
-                <b>Invoice Date:</b>
-                {{ order.created_at }}
-
-                <br><br>
-
-                <b>User ID:</b>
-                {{ order.user_id }}
-
-            </div>
-
-        </td>
-
-
-        <!-- CUSTOMER DETAILS -->
-
-        <td>
-
-            <div class="box">
-
-                <div class="box-title">
-                    Customer Details
+            </td>
+            <td style="padding-right: 0;">
+                <div class="panel-box">
+                    <div class="panel-title">Customer Details</div>
+                    <div class="info-row"><span class="info-label">Customer Name:</span> {{ order.customer_name }}</div>
+                    <div class="info-row"><span class="info-label">Contact Phone:</span> {{ order.customer_phone }}</div>
+                    <div class="info-row"><span class="info-label">Email Address:</span> {{ session.get('user_email', 'N/A') }}</div>
                 </div>
+            </td>
+        </tr>
+    </table>
 
-                <b>Name:</b>
-                {{ order.customer_name }}
-
-                <br><br>
-
-                <b>Email:</b>
-                {{ session.get('user_email') }}
-
-                <br><br>
-
-                <b>Mobile:</b>
-                {{ order.customer_phone }}
-
-            </div>
-
-        </td>
-
-    </tr>
-
-</table>
-
-
-
-<!-- =====================================================
-     DELIVERY ADDRESS
-====================================================== -->
-
-<div class="address-box">
-
-    <div class="box-title">
-        Delivery Address
+    <!-- Shipping Address Section -->
+    <div class="panel-box" style="margin-bottom: 15px;">
+        <div class="panel-title">Shipping &amp; Delivery Destination</div>
+        <div>
+            <strong>{{ order.customer_name }}</strong><br>
+            {{ order.shipping_address }}<br>
+            {{ order.shipping_city }}, {{ order.shipping_state }} - {{ order.shipping_pincode }}<br>
+            Phone: {{ order.customer_phone }}
+        </div>
     </div>
 
-    <b>Address:</b>
+    <!-- Items Table -->
+    <table class="items-table" cellpadding="0" cellspacing="0">
+        <thead>
+            <tr>
+                <th width="8%" class="text-center">#</th>
+                <th width="48%">Product Description</th>
+                <th width="14%" class="text-center">Qty</th>
+                <th width="15%" class="text-right">Unit Price</th>
+                <th width="15%" class="text-right">Total Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in order_items %}
+            <tr>
+                <td class="text-center">{{ loop.index }}</td>
+                <td><strong>{{ item.product_name }}</strong></td>
+                <td class="text-center">{{ item.quantity }}</td>
+                <td class="text-right">Rs. {{ "%.2f"|format(item.price) }}</td>
+                <td class="text-right">Rs. {{ "%.2f"|format(item.price * item.quantity) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 
-    {{ order.shipping_address }}
+    <!-- Summary & Totals Table -->
+    <table class="summary-table" cellpadding="0" cellspacing="0">
+        <tr>
+            <td>Items Subtotal:</td>
+            <td class="text-right">Rs. {{ "%.2f"|format(order.amount) }}</td>
+        </tr>
+        <tr>
+            <td>Shipping &amp; Handling:</td>
+            <td class="text-right">Rs. 0.00</td>
+        </tr>
+        <tr>
+            <td>Taxes (GST Included):</td>
+            <td class="text-right">Rs. 0.00</td>
+        </tr>
+        <tr class="grand-total-row">
+            <td><strong>Grand Total:</strong></td>
+            <td class="text-right"><strong>Rs. {{ "%.2f"|format(order.amount) }}</strong></td>
+        </tr>
+    </table>
 
-    <br><br>
-
-    <b>City:</b>
-    {{ order.shipping_city }}
-
-    <br><br>
-
-    <b>State:</b>
-    {{ order.shipping_state }}
-
-    <br><br>
-
-    <b>Pincode:</b>
-    {{ order.shipping_pincode }}
-
-</div>
-
-
-
-<!-- =====================================================
-     ORDER ITEMS
-====================================================== -->
-
-<table class="items">
-
-    <tr>
-
-        <th width="8%">
-            S.No
-        </th>
-
-        <th width="37%">
-            Product
-        </th>
-
-        <th width="15%">
-            Quantity
-        </th>
-
-        <th width="20%">
-            Unit Price
-        </th>
-
-        <th width="20%">
-            Total
-        </th>
-
-    </tr>
-
-
-    {% for item in order_items %}
-
-    <tr>
-
-        <td class="center">
-            {{ loop.index }}
-        </td>
-
-        <td>
-            {{ item.product_name }}
-        </td>
-
-        <td class="center">
-            {{ item.quantity }}
-        </td>
-
-        <td class="right">
-            Rs. {{ "%.2f"|format(item.price) }}
-        </td>
-
-        <td class="right">
-            Rs. {{ "%.2f"|format(item.price * item.quantity) }}
-        </td>
-
-    </tr>
-
-    {% endfor %}
-
-</table>
-
-
-
-<!-- =====================================================
-     PRICE SUMMARY
-====================================================== -->
-
-<table class="summary">
-
-    <tr>
-
-        <td>
-            Subtotal
-        </td>
-
-        <td class="right">
-            Rs. {{ "%.2f"|format(order.amount) }}
-        </td>
-
-    </tr>
-
-
-    <tr>
-
-        <td>
-            Delivery Charge
-        </td>
-
-        <td class="right">
-            Rs. 0.00
-        </td>
-
-    </tr>
-
-
-    <tr class="grand-total">
-
-        <td>
-            Grand Total
-        </td>
-
-        <td class="right">
-            Rs. {{ "%.2f"|format(order.amount) }}
-        </td>
-
-    </tr>
-
-</table>
-
-
-
-<!-- =====================================================
-     PAYMENT DETAILS
-====================================================== -->
-
-<div class="payment-box">
-
-    <div class="box-title">
-        Payment Details
+    <!-- Payment Verification Details Box -->
+    <div class="payment-status-box">
+        <div style="font-weight: bold; color: #047857; margin-bottom: 4px;">
+            Transaction Verified &bull; Payment Status: {{ order.payment_status|upper }}
+        </div>
+        <div style="font-size: 10px; color: #065f46;">
+            <strong>Razorpay Order ID:</strong> {{ order.razorpay_order_id }} &nbsp;|&nbsp;
+            <strong>Payment ID:</strong> {{ order.razorpay_payment_id }} &nbsp;|&nbsp;
+            <strong>Amount Paid:</strong> Rs. {{ "%.2f"|format(order.amount) }}
+        </div>
     </div>
 
-    <b>Payment Status:</b>
-    {{ order.payment_status }}
-
-    <br><br>
-
-    <b>Razorpay Order ID:</b>
-    {{ order.razorpay_order_id }}
-
-    <br><br>
-
-    <b>Razorpay Payment ID:</b>
-    {{ order.razorpay_payment_id }}
-
-    <br><br>
-
-    <b>Amount Paid:</b>
-    Rs. {{ "%.2f"|format(order.amount) }}
-
-</div>
-
-
-
-<!-- =====================================================
-     FOOTER
-====================================================== -->
-
-<div class="footer">
-
-    <p>
-        Thank you for shopping with SmartCart!
-    </p>
-
-    <p>
-        This is a computer-generated invoice.
-    </p>
-
-</div>
-
+    <!-- Footer -->
+    <div class="footer">
+        <p style="margin: 0 0 3px 0;"><strong>Thank you for choosing SmartCart!</strong></p>
+        <p style="margin: 0;">This is a computer-generated tax invoice and requires no physical signature.</p>
+    </div>
 
 </body>
-
 </html>

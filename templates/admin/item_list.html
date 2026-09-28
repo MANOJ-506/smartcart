@@ -1,178 +1,99 @@
+{% extends "admin/admin_base.html" %}
 
-<!DOCTYPE html>
+{% block title %}Product List - SmartCart Admin{% endblock %}
+{% block admin_page_title %}Product Management{% endblock %}
 
-<html>
-<head>
-    <title>Products List</title>
-</head>
+{% block admin_content %}
+<div>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+        <h1>Products</h1>
+        <a href="{{ url_for('add_item_page') }}" class="btn btn-primary">
+            + Add New Product
+        </a>
+    </div>
 
-<body>
-
-<h2>Product List</h2>
-
-<!-- Flash Messages -->
-{% with messages = get_flashed_messages(with_categories=true) %}
-    {% for category, message in messages %}
-        <p style="color: rgb(0, 128, 36);">{{ message }}</p>
-    {% endfor %}
-{% endwith %}
-
-
-<!-- Search Form -->
-<form method="GET" action="/admin/item-list">
-
-    <input
-        type="text"
-        name="search"
-        placeholder="Search product..."
-        value="{{ request.args.get('search', '') }}"
-    >
-
-    <button type="submit">Search</button>
-
-</form>
-
-<br>
-
-
-<!-- Category Filter -->
-<form method="GET" action="/admin/item-list">
-
-    <select name="category">
-
-        <option value="">All Categories</option>
-
-        {% for cat in categories %}
-
-        <option
-            value="{{ cat.category }}"
-            {% if request.args.get('category') == cat.category %}
-                selected
-            {% endif %}
+    <!-- Clean Filter Row -->
+    <form method="GET" action="/admin/item-list" class="filter-row">
+        <input
+            type="text"
+            name="search"
+            class="form-control search-input"
+            placeholder="Search products..."
+            value="{{ request.args.get('search', '') }}"
         >
-            {{ cat.category }}
-        </option>
 
-        {% endfor %}
+        <select name="category" class="form-control category-select">
+            <option value="">All Categories</option>
+            {% for cat in categories %}
+            <option value="{{ cat.category }}" {% if request.args.get('category') == cat.category %} selected {% endif %}>
+                {{ cat.category }}
+            </option>
+            {% endfor %}
+        </select>
 
-    </select>
+        <button type="submit" class="btn btn-primary">
+            Search
+        </button>
 
-    <button type="submit">Filter</button>
+        {% if request.args.get('search') or request.args.get('category') %}
+        <a href="{{ url_for('item_list') }}" class="btn btn-secondary">
+            Reset
+        </a>
+        {% endif %}
+    </form>
 
-</form>
-
-<br>
-
-
-<!-- Add Product -->
-<a href="/admin/add-item">Add New Product</a>
-
-<br>
-<br>
-
-
-<!-- Product Table -->
-<table border="1" cellpadding="10">
-
-    <tr>
-        <th>ID</th>
-        <th>Image</th>
-        <th>Name</th>
-        <th>Category</th>
-        <th>Price</th>
-        <th>View</th>
-        <th>Update</th>
-        <th>Delete</th>
-    </tr>
-
-
-    {% for product in products %}
-
-    <tr>
-
-        <!-- Product ID -->
-        <td>
-            {{ product.product_id }}
-        </td>
-
-
-        <!-- Product Image -->
-        <td>
-
-            {% if product.image %}
-
-            <img
-                src="/static/uploads/product_images/{{ product.image }}"
-                width="70"
-                height="70"
-            >
-
-            {% else %}
-
-            No Image
-
-            {% endif %}
-
-        </td>
-
-
-        <!-- Product Name -->
-        <td>
-            {{ product.name }}
-        </td>
-
-
-        <!-- Category -->
-        <td>
-            {{ product.category }}
-        </td>
-
-
-        <!-- Price -->
-        <td>
-            ₹{{ product.price }}
-        </td>
-
-
-        <!-- View -->
-        <td>
-
-            <a href="/admin/view-item/{{ product.product_id }}">
-                View
-            </a>
-
-        </td>
-
-
-        <!-- Update -->
-        <td>
-
-            <a href="/admin/update-item/{{ product.product_id }}">
-                Update
-            </a>
-
-        </td>
-
-
-        <!-- Delete -->
-        <td>
-
-            <a
-                href="/admin/delete-item/{{ product.product_id }}"
-                onclick="return confirm('Are you sure you want to delete this product?')"
-            >
-                Delete
-            </a>
-
-        </td>
-
-    </tr>
-
-    {% endfor %}
-
-</table>
-<a href="/admin-dashboard">back to dashboard</a>
-
-</body>
-</html>
-
+    {% if products %}
+    <div class="table-wrapper">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th style="width: 60px;">ID</th>
+                    <th style="width: 70px;">Image</th>
+                    <th>Name</th>
+                    <th>Category</th>
+                    <th>Price</th>
+                    <th style="text-align: right; width: 180px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for product in products %}
+                <tr>
+                    <td>#{{ product.product_id }}</td>
+                    <td>
+                        {% if product.image %}
+                        <img src="/static/uploads/product_images/{{ product.image }}" alt="{{ product.name }}" style="width: 44px; height: 44px; object-fit: contain; border: 1px solid var(--border); border-radius: var(--radius); padding: 2px;">
+                        {% else %}
+                        <span style="color: var(--text-light); font-size: 0.75rem;">None</span>
+                        {% endif %}
+                    </td>
+                    <td><strong>{{ product.name }}</strong></td>
+                    <td>{{ product.category }}</td>
+                    <td>₹{{ "%.2f"|format(product.price|float) if product.price else "0.00" }}</td>
+                    <td style="text-align: right;">
+                        <div style="display: inline-flex; gap: 0.35rem; align-items: center;">
+                            <a href="/admin/view-item/{{ product.product_id }}" class="btn btn-sm btn-outline">
+                                View
+                            </a>
+                            <a href="/admin/update-item/{{ product.product_id }}" class="btn btn-sm btn-secondary">
+                                Edit
+                            </a>
+                            <a href="/admin/delete-item/{{ product.product_id }}" class="btn btn-sm btn-danger" onclick="return confirm('Delete this product permanently?')">
+                                Delete
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div style="text-align: center; padding: 4rem 1rem; border: 1px dashed var(--border); border-radius: var(--radius);">
+        <p style="font-size: 1.1rem; margin-bottom: 1rem;">No products found in inventory.</p>
+        <a href="{{ url_for('add_item_page') }}" class="btn btn-primary">
+            Add Product
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

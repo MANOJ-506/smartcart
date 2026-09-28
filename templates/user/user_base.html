@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block layout %}
+<!-- Clean Navigation -->
+<nav class="site-nav">
+    <div class="container">
+        <div class="site-nav-inner">
+            <a href="{{ url_for('user_products') }}" class="brand-logo">
+                <i class="fa-solid fa-cart-shopping"></i> Smart<span>Cart</span>
+            </a>
+
+            <button class="nav-toggle" id="navToggle" aria-label="Toggle Menu">
+                <i class="fa-solid fa-bars"></i>
+            </button>
+
+            <ul class="nav-menu" id="navMenu">
+                <li>
+                    <a href="{{ url_for('user_dashboard') }}" class="nav-link {% if request.path == '/user-dashboard' %}active{% endif %}">
+                        Home
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('user_products') }}" class="nav-link {% if request.path == '/user/products' %}active{% endif %}">
+                        Products
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('view_cart') }}" class="nav-cart">
+                        <span>Cart</span>
+                        <span class="cart-pill">{{ session.get('cart', {})|length }}</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('my_orders') }}" class="nav-link {% if request.path == '/user/my-orders' %}active{% endif %}">
+                        My Orders
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('user_logout') }}" class="btn btn-sm btn-outline">
+                        Logout
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<!-- Main Page Content -->
+<main class="site-main">
+    <div class="container">
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="alerts-container">
+                {% for category, message in messages %}
+                <div class="alert alert-{{ category if category != 'error' else 'danger' }}">
+                    <span>{{ message }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        {% endwith %}
+
+        {% block user_content %}{% endblock %}
+    </div>
+</main>
+
+<!-- Simple Footer -->
+<footer class="site-footer">
+    <div class="container">
+        <p>&copy; 2026 SmartCart. All rights reserved.</p>
+    </div>
+</footer>
+{% endblock %}

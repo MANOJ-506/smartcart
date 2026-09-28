@@ -1,29 +1,65 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Admin Signup</title>
-</head>
-<body>
+{% extends "base.html" %}
 
-<h2>Admin Registration</h2>
+{% block title %}Admin Registration - SmartCart{% endblock %}
 
-<!-- Flash messages -->
-{% with messages = get_flashed_messages(with_categories=true) %}
-  {% for category, message in messages %}
-    <p style="color:red;">{{ message }}</p>
-  {% endfor %}
-{% endwith %}
+{% block layout %}
+<div class="auth-wrapper">
+    <div class="auth-card">
+        <div class="auth-header">
+            <a href="/" class="brand-logo">
+                <i class="fa-solid fa-cube"></i> SmartCart <span class="badge">Admin</span>
+            </a>
+            <h1>Admin Registration</h1>
+            <p>Create an administrator account</p>
+        </div>
 
-<form method="POST" action="/admin-signup">
-    <label>Name:</label><br>
-    <input type="text" name="name" required><br><br>
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="alerts-container">
+                {% for category, message in messages %}
+                <div class="alert alert-{{ category if category != 'error' else 'danger' }}">
+                    <span>{{ message }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        {% endwith %}
 
-    <label>Email:</label><br>
-    <input type="email" name="email" required><br><br>
+        <form method="POST" action="/admin-signup">
+            <div class="form-group">
+                <label class="form-label" for="admin_name">Name</label>
+                <input
+                    type="text"
+                    id="admin_name"
+                    name="name"
+                    class="form-control"
+                    placeholder="Enter full name"
+                    required
+                    autofocus
+                >
+            </div>
 
-    <button type="submit">Send OTP</button> <br><br>
-    <a href="/admin-login">login</a>
-</form>
+            <div class="form-group">
+                <label class="form-label" for="admin_email">Email</label>
+                <input
+                    type="email"
+                    id="admin_email"
+                    name="email"
+                    class="form-control"
+                    placeholder="admin@example.com"
+                    required
+                >
+            </div>
 
-</body>
-</html>
+            <button type="submit" class="btn btn-primary btn-block" style="margin-top: 1.25rem;">
+                Send OTP
+            </button>
+        </form>
+
+        <div class="auth-footer">
+            Already registered? <a href="/admin-login">Login</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

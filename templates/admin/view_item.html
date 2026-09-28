@@ -1,21 +1,57 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Product Details</title>
-</head>
-<body>
+{% extends "admin/admin_base.html" %}
 
-<h2>Product Details</h2>
+{% block title %}View Product - SmartCart Admin{% endblock %}
+{% block admin_page_title %}Product Details{% endblock %}
 
-<img src="/static/uploads/product_images/{{ product.image }}" width="200"><br><br>
+{% block admin_content %}
+<div class="container-narrow">
+    <div style="margin-bottom: 1.5rem;">
+        <a href="{{ url_for('item_list') }}" style="font-size: 0.9rem;">
+            &larr; Back to Products
+        </a>
+    </div>
 
-<p><strong>Name:</strong> {{ product.name }}</p>
-<p><strong>Description:</strong> {{ product.description }}</p>
-<p><strong>Category:</strong> {{ product.category }}</p>
-<p><strong>Price:</strong> ₹{{ product.price }}</p>
+    <div class="card">
+        <div class="card-header">
+            <div>
+                <h2>{{ product.name }}</h2>
+                <span class="badge">{{ product.category }}</span>
+            </div>
+            <div style="display: flex; gap: 0.5rem;">
+                <a href="/admin/update-item/{{ product.product_id }}" class="btn btn-sm btn-primary">
+                    Edit
+                </a>
+                <a href="/admin/delete-item/{{ product.product_id }}" class="btn btn-sm btn-danger" onclick="return confirm('Delete this product permanently?')">
+                    Delete
+                </a>
+            </div>
+        </div>
 
-<br>
-<a href="/admin/item-list">Back to List</a>
+        <div style="display: grid; grid-template-columns: 200px 1fr; gap: 2rem; align-items: start;">
+            <div style="background: #ffffff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; text-align: center;">
+                {% if product.image %}
+                <img src="/static/uploads/product_images/{{ product.image }}" alt="{{ product.name }}" style="max-height: 180px; max-width: 100%; object-fit: contain; margin: 0 auto;">
+                {% else %}
+                <span style="color: var(--text-light); font-size: 0.85rem;">No Image</span>
+                {% endif %}
+            </div>
 
-</body>
-</html>
+            <div>
+                <div style="margin-bottom: 1rem;">
+                    <div style="font-size: 0.825rem; color: var(--text-muted);">Price</div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: var(--primary);">
+                        ₹{{ "%.2f"|format(product.price|float) if product.price else "0.00" }}
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 1rem;">
+                    <div style="font-size: 0.825rem; color: var(--text-muted);">Description</div>
+                    <div style="font-size: 0.95rem; line-height: 1.6; white-space: pre-line;">
+                        {{ product.description }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
