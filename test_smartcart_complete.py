@@ -12,6 +12,7 @@ class SmartCartComprehensiveTests(unittest.TestCase):
 
     def test_01_public_routes(self):
         routes = [
+            ('/health', 200, 'ok'),
             ('/', 200, 'SmartCart'),
             ('/user-login', 200, 'Welcome Back'),
             ('/user-register', 200, 'Create Account'),

@@ -1,9 +1,7 @@
 
-# =========================================================
-# IMPORTS
-# =========================================================
-
-from flask import Flask, render_template, request, redirect, session, flash,make_response
+import os
+from werkzeug.utils import secure_filename
+from flask import Flask, render_template, request, redirect, session, flash, make_response
 from flask_mail import Mail, Message
 import sqlite3
 import bcrypt
@@ -26,18 +24,26 @@ app.secret_key = config.SECRET_KEY
 
 
 # =========================================================
-# EMAIL CONFIGURATION
+# EMAIL & UPLOADS CONFIGURATION
 # =========================================================
 
 app.config['MAIL_SERVER'] = config.MAIL_SERVER
 app.config['MAIL_PORT'] = config.MAIL_PORT
 app.config['MAIL_USE_TLS'] = config.MAIL_USE_TLS
+app.config['MAIL_USE_SSL'] = getattr(config, 'MAIL_USE_SSL', False)
 app.config['MAIL_USERNAME'] = config.MAIL_USERNAME
 app.config['MAIL_PASSWORD'] = config.MAIL_PASSWORD
+app.config['MAIL_DEFAULT_SENDER'] = getattr(config, 'MAIL_DEFAULT_SENDER', 'smartcart.app@gmail.com')
+app.config['ADMIN_UPLOAD_FOLDER'] = config.ADMIN_UPLOAD_FOLDER
+app.config['UPLOAD_FOLDER'] = getattr(config, 'PRODUCT_UPLOAD_FOLDER', os.path.join(config.BASE_DIR, 'static', 'uploads', 'product_images'))
+
+# Ensure upload directories and DB directory exist safely on startup
+os.makedirs(app.config['ADMIN_UPLOAD_FOLDER'], exist_ok=True)
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+os.makedirs(os.path.dirname(os.path.abspath(config.DATABASE)), exist_ok=True)
 
 # Initialize Flask-Mail
 mail = Mail(app)
-app.config['ADMIN_UPLOAD_FOLDER'] = config.ADMIN_UPLOAD_FOLDER
 
 
 
@@ -131,8 +137,18 @@ def init_db():
 # Ensure database tables exist on startup
 init_db()
 razorpay_client = razorpay.Client(
-    auth=(config.RAZORPAY_KEY_ID, config.RAZORPAY_KEY_SECRET)
+    auth=(config.RAZORPAY_KEY_ID or "rzp_placeholder", config.RAZORPAY_KEY_SECRET or "placeholder_secret")
 )
+
+
+# =========================================================
+# HEALTH CHECK ENDPOINT (For Render.com Monitoring)
+# =========================================================
+
+@app.route('/health')
+def health():
+    """Health check endpoint for deployment monitoring."""
+    return {"status": "ok"}, 200
 
 
 # =========================================================
@@ -215,22 +231,27 @@ def admin_signup():
     session['otp'] = otp
 
 
-    # -----------------------------------------------------
-    # Send OTP to user's email
-    # -----------------------------------------------------
+    print("======================================")
+    print("ADMIN REGISTRATION OTP")
+    print("Name :", name)
+    print("Email:", email)
+    print("OTP  :", otp)
+    print("======================================")
 
-    message = Message(
-        subject="SmartCart Admin OTP",
-        sender=config.MAIL_USERNAME,
-        recipients=[email]
-    )
-
-    message.body = (
-        f"Your OTP for SmartCart Admin Registration is: {otp}"
-    )
-
-    mail.send(message)
-
+    sender_email = config.MAIL_USERNAME or app.config.get('MAIL_DEFAULT_SENDER') or 'smartcart.app@gmail.com'
+    if config.MAIL_USERNAME and config.MAIL_PASSWORD:
+        try:
+            message = Message(
+                subject="SmartCart Admin OTP",
+                sender=sender_email,
+                recipients=[email]
+            )
+            message.body = f"Your OTP for SmartCart Admin Registration is: {otp}"
+            mail.send(message)
+        except Exception as e:
+            print("ADMIN REGISTRATION MAIL ERROR:", e)
+    else:
+        print("[DEV/DEMO MODE] Email credentials not configured. OTP printed to server console.")
 
     # -----------------------------------------------------
     # Redirect user to OTP verification page
@@ -404,16 +425,26 @@ def admin_forgot_password():
     session['admin_forgot_email'] = email
     session['admin_forgot_otp'] = otp
 
-    try:
-        msg = Message(
-            subject="SmartCart Admin - Password Reset OTP",
-            sender=config.MAIL_USERNAME,
-            recipients=[email]
-        )
-        msg.body = f"Your SmartCart Admin password reset OTP is: {otp}\n\nDo not share this OTP with anyone."
-        mail.send(msg)
-    except Exception as e:
-        print("MAIL ERROR:", e)
+    print("======================================")
+    print("ADMIN FORGOT PASSWORD OTP")
+    print("Email:", email)
+    print("OTP  :", otp)
+    print("======================================")
+
+    sender_email = config.MAIL_USERNAME or app.config.get('MAIL_DEFAULT_SENDER') or 'smartcart.app@gmail.com'
+    if config.MAIL_USERNAME and config.MAIL_PASSWORD:
+        try:
+            msg = Message(
+                subject="SmartCart Admin - Password Reset OTP",
+                sender=sender_email,
+                recipients=[email]
+            )
+            msg.body = f"Your SmartCart Admin password reset OTP is: {otp}\n\nDo not share this OTP with anyone."
+            mail.send(msg)
+        except Exception as e:
+            print("ADMIN FORGOT PASSWORD MAIL ERROR:", e)
+    else:
+        print("[DEV/DEMO MODE] Email credentials not configured. OTP printed to server console.")
 
     flash("Password reset OTP sent to your email!", "success")
     return redirect('/admin-forgot-verify-otp')
@@ -518,13 +549,6 @@ def admin_logout():
 
     flash("Logged out successfully.", "success")
     return redirect('/admin-login')
-
-import os
-from werkzeug.utils import secure_filename
-
-# ------------------- IMAGE UPLOAD PATH -------------------
-UPLOAD_FOLDER = 'static/uploads/product_images'
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 
 # =================================================================
@@ -958,15 +982,15 @@ def user_register():
     # SEND OTP TO EMAIL
     # -------------------------------------------------------------
 
-    try:
-
-        msg = Message(
-            subject='E-Commerce - Email Verification OTP',
-            sender=config.MAIL_USERNAME,
-            recipients=[email]
-        )
-
-        msg.body = f"""
+    sender_email = config.MAIL_USERNAME or app.config.get('MAIL_DEFAULT_SENDER') or 'smartcart.app@gmail.com'
+    if config.MAIL_USERNAME and config.MAIL_PASSWORD:
+        try:
+            msg = Message(
+                subject='E-Commerce - Email Verification OTP',
+                sender=sender_email,
+                recipients=[email]
+            )
+            msg.body = f"""
 Hello {name},
 
 Thank you for registering with our E-Commerce Application.
@@ -982,27 +1006,11 @@ Do not share this OTP with anyone.
 Regards,
 E-Commerce Team
 """
-
-        mail.send(msg)
-
-
-    except Exception as e:
-
-        print("MAIL ERROR:", e)
-
-        # Remove temporary session data
-
-        session.pop('user_register_name', None)
-        session.pop('user_register_email', None)
-        session.pop('user_register_otp', None)
-
-        flash(
-            'Unable to send OTP. Please check your email configuration.',
-            'danger'
-        )
-
-        return redirect('/user-register')
-
+            mail.send(msg)
+        except Exception as e:
+            print("USER REGISTER MAIL ERROR:", e)
+    else:
+        print("[DEV/DEMO MODE] Email credentials not configured. OTP printed to server console.")
 
     # -------------------------------------------------------------
     # OTP SENT SUCCESSFULLY
@@ -1453,16 +1461,26 @@ def user_forgot_password():
     session['user_forgot_email'] = email
     session['user_forgot_otp'] = otp
 
-    try:
-        msg = Message(
-            subject="SmartCart - Password Reset OTP",
-            sender=config.MAIL_USERNAME,
-            recipients=[email]
-        )
-        msg.body = f"Hello {user.get('name', 'Customer')},\n\nYour SmartCart password reset OTP is: {otp}\n\nDo not share this OTP with anyone.\n\nRegards,\nSmartCart Team"
-        mail.send(msg)
-    except Exception as e:
-        print("MAIL ERROR:", e)
+    print("======================================")
+    print("USER FORGOT PASSWORD OTP")
+    print("Email:", email)
+    print("OTP  :", otp)
+    print("======================================")
+
+    sender_email = config.MAIL_USERNAME or app.config.get('MAIL_DEFAULT_SENDER') or 'smartcart.app@gmail.com'
+    if config.MAIL_USERNAME and config.MAIL_PASSWORD:
+        try:
+            msg = Message(
+                subject="SmartCart - Password Reset OTP",
+                sender=sender_email,
+                recipients=[email]
+            )
+            msg.body = f"Hello {user['name'] if 'name' in user.keys() else 'Customer'},\n\nYour SmartCart password reset OTP is: {otp}\n\nDo not share this OTP with anyone.\n\nRegards,\nSmartCart Team"
+            mail.send(msg)
+        except Exception as e:
+            print("USER FORGOT PASSWORD MAIL ERROR:", e)
+    else:
+        print("[DEV/DEMO MODE] Email credentials not configured. OTP printed to server console.")
 
     flash("Password reset OTP sent to your email!", "success")
     return redirect('/user-forgot-verify-otp')
@@ -1680,7 +1698,7 @@ def add_to_cart(product_id):
 
     if not product:
         flash("Product not found.", "danger")
-        return redirect(request.referrer)
+        return redirect(request.referrer or '/user/products')
 
     pid = str(product_id)
 
@@ -1698,7 +1716,7 @@ def add_to_cart(product_id):
     session['cart'] = cart
 
     flash("Item added to cart!", "success")
-    return redirect(request.referrer) 
+    return redirect(request.referrer or '/user/cart') 
   
 
 # =================================================================
@@ -1903,14 +1921,18 @@ def payment(product_id):
     razorpay_amount = int(total_amount * 100)
 
     # Create Razorpay order
-    razorpay_order = razorpay_client.order.create({
-        "amount": razorpay_amount,
-        "currency": "INR",
-        "payment_capture": "1"
-    })
-
-    # Store Razorpay order ID
-    session['razorpay_order_id'] = razorpay_order['id']
+    try:
+        razorpay_order = razorpay_client.order.create({
+            "amount": razorpay_amount,
+            "currency": "INR",
+            "payment_capture": "1"
+        })
+        razorpay_order_id = razorpay_order['id']
+        session['razorpay_order_id'] = razorpay_order_id
+    except Exception as e:
+        print("RAZORPAY ORDER CREATION ERROR:", e)
+        flash("Payment gateway is temporarily unavailable. Please check Razorpay keys.", "danger")
+        return redirect(f'/user/product/{product_id}')
 
     # Render payment page
     return render_template(
@@ -1918,7 +1940,7 @@ def payment(product_id):
         product=product,
         amount=total_amount,
         key_id=config.RAZORPAY_KEY_ID,
-        order_id=razorpay_order['id']
+        order_id=razorpay_order_id
     )
 # =========================================================
 # VERIFY PAYMENT
@@ -2428,4 +2450,5 @@ def download_invoice(order_id):
 # =================================================================
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=True)
