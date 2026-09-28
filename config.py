@@ -1,11 +1,26 @@
 import os
-from dotenv import load_dotenv
 
 # Base Directory (Absolute path to project root)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Load environment variables from .env file if present
-load_dotenv(os.path.join(BASE_DIR, ".env"))
+# Load environment variables from .env file (Fail-safe: works with or without python-dotenv)
+try:
+    from dotenv import load_dotenv
+    load_dotenv(os.path.join(BASE_DIR, ".env"))
+except ImportError:
+    env_file = os.path.join(BASE_DIR, ".env")
+    if os.path.exists(env_file):
+        try:
+            with open(env_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        key, val = line.split("=", 1)
+                        key, val = key.strip(), val.strip().strip("'\"")
+                        if key and key not in os.environ:
+                            os.environ[key] = val
+        except Exception:
+            pass
 
 # Flask Secret Key for session signing
 SECRET_KEY = os.environ.get("SECRET_KEY", "smartcart-default-session-secret-change-in-production")
